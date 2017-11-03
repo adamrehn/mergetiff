@@ -24,7 +24,7 @@ pip install mergetiff
 Using the command-line tool
 ---------------------------
 
-If we have one GeoTiff called 'rgb.tif' containing 3 raster bands and another GeoTiff called 'alpha.tif' containing a single raster band, we can merge them by running: 
+If we have one GeoTiff called `rgb.tif` containing 3 raster bands and another GeoTiff called `alpha.tif` containing a single raster band, we can merge them by running: 
 
 ```
 mergetiff out.tif rgb.tif 1,2,3 alpha.tif 1
