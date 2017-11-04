@@ -30,6 +30,14 @@ If we have one GeoTiff called `rgb.tif` containing 3 raster bands and another Ge
 mergetiff out.tif rgb.tif 1,2,3 alpha.tif 1
 ```
 
+Alternatively, if we only want to copy the metadata from the first file without including any of its raster bands, the band specifier `-` can be used to exclude all bands:
+
+```
+mergetiff out.tif rgb.tif - alpha.tif 1
+```
+
+This will copy all of the metadata from `rgb.tif` and the first raster band from `alpha.tif` into the output file.
+
 
 Using the library
 -----------------
@@ -39,12 +47,16 @@ To perform the same merge described in the section above using the library direc
 ```
 import mergetiff
 
+# Open both datasets
 dataset1 = mergetiff.openDataset('rgb.tif')
 dataset2 = mergetiff.openDataset('alpha.tif')
 
+# Include the raster bands that we want
+# (Note that the dataset we use for metadata does not have to be included)
 bands = []
 bands.extend( mergetiff.getRasterBands(dataset1, [1,2,3]) )
 bands.extend( mergetiff.getRasterBands(dataset2, [1]) )
 
+# Perform the merge, using the metadata from the first dataset
 mergetiff.createMergedDataset('merged.tif', dataset1, bands)
 ```

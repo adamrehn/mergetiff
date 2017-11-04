@@ -13,7 +13,8 @@ def main():
 		bands = []
 		for i in range(2, len(sys.argv), 2):
 			dataset = openDataset(sys.argv[i])
-			bandIndices = [int(b) for b in sys.argv[i+1].split(',')]
+			bandStr = sys.argv[i+1]
+			bandIndices = [] if bandStr == '-' else [int(b) for b in bandStr.split(',')]
 			datasets.append(dataset)
 			bands.extend(getRasterBands(dataset, bandIndices))
 		
