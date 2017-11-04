@@ -3,12 +3,15 @@
 
 This package implements a library and associated command-line tool called `mergetiff` that provides functionality to merge raster bands from multiple GeoTiff files into a single dataset. Metadata (including geospatial reference and projection data) will be copied from the first input dataset (when using the command-line tool) or from the dataset passed as the second argument to the `createMergedDataset()` function.
 
+Functionality is also provided for converting between GDAL datasets and NumPy arrays, to facilitate interoperability with other image processing libraries.
+
 
 Requirements
 ------------
 
 - Python 2.7 or Python 3.4+
 - GDAL Python bindings
+- NumPy
 
 
 Installation
@@ -59,4 +62,24 @@ bands.extend( mergetiff.getRasterBands(dataset2, [1]) )
 
 # Perform the merge, using the metadata from the first dataset
 mergetiff.createMergedDataset('merged.tif', dataset1, bands)
+```
+
+If we want to perform image processing on raster data, we can use the NumPy interoperability functionality of the library:
+
+```
+import mergetiff
+
+# Open the dataset and read the raster data into a NumPy ndarray
+dataset = mergetiff.openDataset('rgb.tif')
+rasterArray = mergetiff.rasterFromDataset(dataset)
+
+# Manipulate the raster array here
+# ...
+
+# Convert the modified raster data back into a GDAL dataset
+modifiedDataset = mergetiff.datasetFromRaster(rasterArray)
+
+# Merge the modified raster bands with the original metadata
+bands = mergetiff.getRasterBands(modifiedDataset, [1,2,3])
+mergetiff.createMergedDataset('modified.tif', dataset, bands)
 ```

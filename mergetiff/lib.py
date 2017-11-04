@@ -1,4 +1,5 @@
 from osgeo import gdal
+import numpy as np
 
 def openDataset(filename):
 	"""
@@ -12,13 +13,83 @@ def getRasterBands(dataset, bandIndices):
 	"""
 	return list([dataset.GetRasterBand(i) for i in bandIndices])
 
+def rasterFromFile(filename):
+	"""
+	Opens a dataset, reads all raster bands, and returns them as a NumPy ndarray of shape (h,w[,c])
+	"""
+	return rasterFromDataset(openDataset(filename))
+
+def rasterFromDataset(dataset):
+	"""
+	Reads all raster bands from a dataset and returns them as a NumPy ndarray of shape (h,w[,c])
+	"""
+	raster = dataset.ReadAsArray()
+	if len(raster.shape) > 2:
+		raster = raster.transpose((1, 2, 0))
+	return raster
+
+def datasetFromRaster(raster, forceGrayInterp = False):
+	"""
+	Takes a NumPy ndarray of shape (h,w[,c]) and returns an in-memory GDAL Dataset
+	"""
+	
+	# If the raster image is only single-channel, add the extra dimension to its shape
+	if len(raster.shape) == 2:
+		raster = raster[:,np.newaxis]
+	
+	# Mappings from NumPy datatypes to their equivalent GDAL datatypes
+	typeMappings = {
+		np.dtype(np.byte):    gdal.GDT_Byte,
+		np.dtype(np.int8):    gdal.GDT_Byte,
+		np.dtype(np.uint8):   gdal.GDT_Byte,
+		np.dtype(np.int16):   gdal.GDT_Int16,
+		np.dtype(np.uint16):  gdal.GDT_UInt16,
+		np.dtype(np.int32):   gdal.GDT_Int32,
+		np.dtype(np.uint32):  gdal.GDT_UInt32,
+		np.dtype(np.float32): gdal.GDT_Float32,
+		np.dtype(np.float64): gdal.GDT_Float64,
+	}
+	
+	# Create an in-memory dataset
+	numBands = raster.shape[2]
+	driver = gdal.GetDriverByName('MEM')
+	dataset = driver.Create(
+		'',
+		raster.shape[1],
+		raster.shape[0],
+		numBands,
+		typeMappings[raster.dtype]
+	)
+	
+	# Copy the raster bands
+	for index in range(0, raster.shape[2]):
+		
+		# Copy the raster data
+		bandData = raster[:,:,index]
+		outputBand = dataset.GetRasterBand(index+1)
+		outputBand.WriteArray(bandData)
+		
+		# Set the colour interpretation value for the band
+		colourInterp = gdal.GCI_GrayIndex
+		if forceGrayInterp == False and numBands >= 3 and index <= 3:
+			colourInterp = [
+				gdal.GCI_RedBand,
+				gdal.GCI_GreenBand,
+				gdal.GCI_BlueBand,
+				gdal.GCI_AlphaBand
+			][index]
+		outputBand.SetColorInterpretation(colourInterp)
+	
+	return dataset
+
 def createMergedDataset(filename, metadataDataset, rasterBands):
 	"""
 	Creates a new dataset with all of the metadata from the specified input dataset,
 	and with each of the raster bands in the supplied list
 	"""
+	
 	# Create the output dataset
-	driver = gdal.GetDriverByName("GTiff")
+	driver = gdal.GetDriverByName('GTiff')
 	dataset = driver.Create(
 		filename,
 		rasterBands[0].XSize,
