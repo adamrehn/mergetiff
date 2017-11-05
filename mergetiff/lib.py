@@ -5,7 +5,9 @@ def openDataset(filename):
 	"""
 	Opens a dataset
 	"""
-	return gdal.Open(filename)
+	drivers = ["GTiff"]
+	options = ["NUM_THREADS=ALL_CPUS"]
+	return gdal.OpenEx(filename, allowed_drivers=drivers, open_options=options)
 
 def getRasterBands(dataset, bandIndices):
 	"""
@@ -88,6 +90,17 @@ def createMergedDataset(filename, metadataDataset, rasterBands):
 	and with each of the raster bands in the supplied list
 	"""
 	
+	# Use LZW compresion with all CPU cores
+	options = []
+	options.append("NUM_THREADS=ALL_CPUS")
+	options.append("COMPRESS=LZW")
+	
+	# Use predictor=2 for integer types and predictor=3 for floating-point types
+	if (rasterBands[0].DataType == gdal.GDT_Float32 or rasterBands[0].DataType == gdal.GDT_Float64):
+		options.append("PREDICTOR=3")
+	else:
+		options.append("PREDICTOR=2")
+	
 	# Create the output dataset
 	driver = gdal.GetDriverByName('GTiff')
 	dataset = driver.Create(
@@ -95,7 +108,8 @@ def createMergedDataset(filename, metadataDataset, rasterBands):
 		rasterBands[0].XSize,
 		rasterBands[0].YSize,
 		len(rasterBands),
-		rasterBands[0].DataType
+		rasterBands[0].DataType,
+		options
 	)
 	
 	# Copy the metadata from the input dataset
