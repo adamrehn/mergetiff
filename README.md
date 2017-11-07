@@ -6,18 +6,71 @@ This package implements a library and associated command-line tool called `merge
 Functionality is also provided for converting between GDAL datasets and NumPy arrays, to facilitate interoperability with other image processing libraries.
 
 
+Contents
+--------
+
+- [Requirements](#requirements)
+- [Installing the GDAL 2.x Python bindings](#installing-the-gdal-2x-python-bindings)
+  - [Windows](#windows)
+  - [macOS](#macos)
+  - [Ubuntu 14.04 LTS or Ubuntu 16.04 LTS](#ubuntu-1404-lts-or-ubuntu-1604-lts)
+  - [Ubuntu 17.04 and newer](#ubuntu-1704-and-newer)
+- [Installation](#installation)
+- [Using the command-line tool](#using-the-command-line-tool)
+- [Using the library](#using-the-library)
+
+
 Requirements
 ------------
 
 - Python 2.7 or Python 3.4+
-- GDAL Python bindings
+- Python bindings for GDAL 2.0+
 - NumPy
+
+
+Installing the GDAL 2.x Python bindings
+---------------------------------------
+
+
+### Windows
+
+GDAL binary wheels for Windows are maintained by Christoph Gohlke and can be downloaded from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal>.
+
+
+### macOS
+
+OSGeo maintains a [Homebrew tap](https://github.com/OSGeo/homebrew-osgeo4mac) which provides packages that can be installed via [Homebrew](https://brew.sh/):
+
+```
+brew tap osgeo/osgeo4mac
+brew install gdal2 gdal2-python
+```
+
+
+### Ubuntu 14.04 LTS or Ubuntu 16.04 LTS
+
+The official package repositories for these older Ubuntu versions only contain GDAL 1.x. GDAL 2.x can be installed via the [UbuntuGIS PPA](https://launchpad.net/~ubuntugis/+archive/ubuntu/ppa):
+
+```
+sudo add-apt-repository -y ppa:ubuntugis/ubuntugis-unstable
+sudo apt update 
+sudo apt install gdal-bin python-gdal python3-gdal
+```
+
+
+#### Ubuntu 17.04 and newer
+
+The official package repositories for newer Ubuntu versions already contain GDAL 2.x, making it extremely simple to install:
+
+```
+sudo apt install gdal-bin python-gdal python3-gdal
+```
 
 
 Installation
 ------------
 
-To install, run:
+Once the GDAL Python bindings have been installed, `mergetiff` can be installed by simply running:
 
 ```
 pip install mergetiff
