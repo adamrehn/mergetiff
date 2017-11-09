@@ -184,3 +184,5 @@ def createMergedDataset(filename, metadataDataset, rasterBands):
 		# Copy the colour interpretation value, if any
 		if inputBand.GetColorInterpretation() != None:
 			outputBand.SetColorInterpretation( inputBand.GetColorInterpretation() )
+	
+	return dataset
