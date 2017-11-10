@@ -12,6 +12,7 @@ def _geotiffOptions(dtype):
 	options = []
 	options.append("NUM_THREADS=ALL_CPUS")
 	options.append("COMPRESS=LZW")
+	options.append("BIGTIFF=YES")
 	
 	# Use predictor=2 for integer types and predictor=3 for floating-point types
 	if (dtype == gdal.GDT_Float32 or dtype == gdal.GDT_Float64):
