@@ -43,7 +43,9 @@ OSGeo maintains a [Homebrew tap](https://github.com/OSGeo/homebrew-osgeo4mac) wh
 
 ```
 brew tap osgeo/osgeo4mac
-brew install gdal2 gdal2-python
+brew install gdal2
+brew link --force gdal2
+pip install gdal
 ```
 
 
