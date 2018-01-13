@@ -12,7 +12,7 @@ def _geotiffOptions(dtype):
 	options = []
 	options.append("NUM_THREADS=ALL_CPUS")
 	options.append("COMPRESS=LZW")
-	options.append("BIGTIFF=YES")
+	options.append("BIGTIFF=IF_SAFER")
 	
 	# Use predictor=2 for integer types and predictor=3 for floating-point types
 	if (dtype == gdal.GDT_Float32 or dtype == gdal.GDT_Float64):
@@ -187,3 +187,81 @@ def createMergedDataset(filename, metadataDataset, rasterBands):
 			outputBand.SetColorInterpretation( inputBand.GetColorInterpretation() )
 	
 	return dataset
+
+
+# Public classes
+
+class RasterReader(object):
+	"""
+	Provides functionality to read raster data from a dataset, storing all
+	raster data in memory if there is sufficient memory available, or else
+	reading data from file as needed when the dataset is too large.
+	"""
+	
+	def __init__(self, filename):
+		
+		# Attempt to open the dataset
+		self._dataset = openDataset(filename)
+		
+		# Retrieve the image dimensions
+		self._width  = self._dataset.GetRasterBand(1).XSize
+		self._height = self._dataset.GetRasterBand(1).YSize
+		
+		# Attempt to read the raster data into memory
+		try:
+			self._raster = rasterFromDataset(self._dataset)
+		except MemoryError:
+			self._raster = None
+	
+	
+	def _assert_slice(self, obj):
+		if type(obj) != type(slice(None)):
+			raise TypeError('indices must be slices')
+	
+	
+	def __getitem__(self, key):
+		
+		# Verify that the specified key is either a slice or tuple of slices
+		if type(key) == type(tuple()):
+			for item in key:
+				self._assert_slice(item)
+		else:
+			self._assert_slice(key)
+		
+		# If the raster data is already in memory, simply index into the NumPy array
+		if self._raster is not None:
+			return self._raster[key]
+		else:
+			
+			# Any unspecified slices will be treated as empty
+			ySlice = slice(None, None, None)
+			xSlice = slice(None, None, None)
+			cSlice = slice(None, None, None)
+			
+			# Determine how many slices were specified and unpack them
+			if type(key) != type(tuple()):
+				ySlice = key
+			elif len(key) == 2:
+				ySlice, xSlice = key
+			elif len(key) == 3:
+				ySlice, xSlice, cSlice = key
+			else:
+				raise RuntimeError('only 3 slice dimensions are supported')
+			
+			# Determine the X and Y image coordinates
+			xStart = xSlice.start if xSlice.start is not None else 0
+			yStart = ySlice.start if ySlice.start is not None else 0
+			xEnd = xSlice.stop if xSlice.stop is not None else self._width
+			yEnd = ySlice.stop if ySlice.stop is not None else self._height
+			xSize = xEnd - xStart
+			ySize = yEnd - yStart
+			
+			# Read the raster data from file
+			data = self._dataset.ReadAsArray(xoff=xStart, yoff=yStart, xsize=xSize, ysize=ySize)
+			
+			# If the image has multiple raster bands, apply the channel slice
+			if len(data.shape) > 2:
+				data = data.transpose((1, 2, 0))
+				data = data[:, :, cSlice]
+			
+			return data

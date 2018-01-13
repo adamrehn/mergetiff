@@ -138,3 +138,17 @@ modifiedDataset = mergetiff.datasetFromRaster(rasterArray)
 bands = mergetiff.getRasterBands(modifiedDataset, [1,2,3])
 mergetiff.createMergedDataset('modified.tif', dataset, bands)
 ```
+
+Alternatively, if we are working with individual subsets of a dataset's raster data and we anticipate that the overall data may be too large to fit in the amount of available system memory, we can use the `RasterReader` class to safely read data. If there is enough available memory to hold the entirety of the dataset's raster data it will be stored in memory to improve performance, otherwise it will be read from file as needed:
+
+```
+# Open the dataset, reading the entirety of its raster data into memory
+# if there is sufficient system memory available to hold it
+reader = mergetiff.RasterReader('rgb.tif')
+
+# Retrieve the top-left 256x256 subset of the raster data
+subsetArray = reader[0:256, 0:256]
+
+# Manipulate the raster array here
+# ...
+```
