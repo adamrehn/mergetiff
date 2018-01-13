@@ -60,7 +60,7 @@ sudo apt install gdal-bin python-gdal python3-gdal
 ```
 
 
-#### Ubuntu 17.04 and newer
+### Ubuntu 17.04 and newer
 
 The official package repositories for newer Ubuntu versions already contain GDAL 2.x, making it extremely simple to install:
 
