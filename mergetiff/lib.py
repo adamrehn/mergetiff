@@ -214,6 +214,27 @@ class RasterReader(object):
 			self._raster = None
 	
 	
+	def isInMemory(self):
+		"""
+		Determines if the raster data is currently stored in system memory.
+		"""
+		return self._raster is not None
+	
+	
+	def width(self):
+		"""
+		Returns the width of the raster data.
+		"""
+		return self._width
+	
+	
+	def height(self):
+		"""
+		Returns the height of the raster data.
+		"""
+		return self._height
+	
+	
 	def _assert_slice(self, obj):
 		if type(obj) != type(slice(None)):
 			raise TypeError('indices must be slices')
@@ -229,7 +250,7 @@ class RasterReader(object):
 			self._assert_slice(key)
 		
 		# If the raster data is already in memory, simply index into the NumPy array
-		if self._raster is not None:
+		if self.isInMemory() == True:
 			return self._raster[key]
 		else:
 			
