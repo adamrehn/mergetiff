@@ -207,6 +207,13 @@ class RasterReader(object):
 		self._width  = self._dataset.GetRasterBand(1).XSize
 		self._height = self._dataset.GetRasterBand(1).YSize
 		
+		# Create our `shape` attribute
+		channels = self._dataset.RasterCount
+		if channels > 1:
+			self.shape = (self._height, self._width, channels)
+		else:
+			self.shape = (self._height, self._width)
+		
 		# Attempt to read the raster data into memory
 		try:
 			self._raster = rasterFromDataset(self._dataset)
