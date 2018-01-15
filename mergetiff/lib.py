@@ -1,3 +1,4 @@
+import slidingwindow as sw
 from osgeo import gdal
 import numpy as np
 
@@ -144,10 +145,12 @@ def createMergedDataset(filename, metadataDataset, rasterBands):
 	
 	# Create the output dataset
 	driver = gdal.GetDriverByName('GTiff')
+	width  = rasterBands[0].XSize
+	height = rasterBands[0].YSize
 	dataset = driver.Create(
 		filename,
-		rasterBands[0].XSize,
-		rasterBands[0].YSize,
+		width,
+		height,
 		len(rasterBands),
 		rasterBands[0].DataType,
 		_geotiffOptions(rasterBands[0].DataType)
@@ -163,6 +166,9 @@ def createMergedDataset(filename, metadataDataset, rasterBands):
 	if metadataDataset != None and metadataDataset.GetGCPCount() > 0:
 		dataset.SetGCPs( metadataDataset.GetGCPs(), metadataDataset.GetGCPProjection() )
 	
+	# Create the set of windows that will be used to copy raster data in blocks
+	windows = sw.generate(width, height, sw.DimOrder.HeightWidthChannel, 2048, 0.0)
+	
 	# Copy each of the input raster bands
 	for index, inputBand in enumerate(rasterBands):
 		
@@ -175,8 +181,10 @@ def createMergedDataset(filename, metadataDataset, rasterBands):
 			outputBand.SetColorInterpretation(gdal.GCI_GrayIndex)
 			continue
 		
-		# Copy the band data
-		outputBand.WriteArray( inputBand.ReadAsArray() )
+		# Copy the band raster data in blocks
+		for window in windows:
+			block = inputBand.ReadAsArray(xoff=window.x, yoff=window.y, win_xsize=window.w, win_ysize=window.h)
+			outputBand.WriteArray(block, xoff=window.x, yoff=window.y)
 		
 		# Copy the "no data" sentinel value, if any
 		if inputBand.GetNoDataValue() != None:
