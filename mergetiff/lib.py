@@ -143,17 +143,26 @@ def createMergedDataset(filename, metadataDataset, rasterBands):
 	NumPy arrays, a grayscale colour interpretation will be applied.
 	"""
 	
+	# Determine resolution and datatype information from the first raster band
+	# (How we extract this depends on whether it is a gdal.Band instance or 2D NumPy array)
+	if hasattr(rasterBands[0], 'ReadAsArray'):
+		width  = rasterBands[0].XSize
+		height = rasterBands[0].YSize
+		dtype  = rasterBands[0].DataType
+	else:
+		width  = rasterBands[0].shape[1]
+		height = rasterBands[0].shape[0]
+		dtype  = _numpyTypeToGdalType(rasterBands[0].dtype)
+	
 	# Create the output dataset
 	driver = gdal.GetDriverByName('GTiff')
-	width  = rasterBands[0].XSize
-	height = rasterBands[0].YSize
 	dataset = driver.Create(
 		filename,
 		width,
 		height,
 		len(rasterBands),
-		rasterBands[0].DataType,
-		_geotiffOptions(rasterBands[0].DataType)
+		dtype,
+		_geotiffOptions(dtype)
 	)
 	
 	# Copy the metadata from the input dataset
