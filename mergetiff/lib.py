@@ -167,7 +167,7 @@ def createMergedDataset(filename, metadataDataset, rasterBands):
 		dataset.SetGCPs( metadataDataset.GetGCPs(), metadataDataset.GetGCPProjection() )
 	
 	# Create the set of windows that will be used to copy raster data in blocks
-	windows = sw.generate(width, height, sw.DimOrder.HeightWidthChannel, 2048, 0.0)
+	windows = sw.generateForSize(width, height, sw.DimOrder.HeightWidthChannel, 2048, 0.0)
 	
 	# Copy each of the input raster bands
 	for index, inputBand in enumerate(rasterBands):
