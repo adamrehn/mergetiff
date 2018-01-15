@@ -42,6 +42,23 @@ def _numpyTypeToGdalType(dtype):
 	return mappings.get(dtype, gdal.GDT_Unknown)
 
 
+def _gdalTypeToNumpyType(dtype):
+	"""
+	Returns the equivalent NumPy datatype for the specified GDAL datatype
+	"""
+	mappings = {
+		gdal.GDT_Byte:    np.dtype(np.uint8),
+		gdal.GDT_Int16:   np.dtype(np.int16),
+		gdal.GDT_UInt16:  np.dtype(np.uint16),
+		gdal.GDT_Int32:   np.dtype(np.int32),
+		gdal.GDT_UInt32:  np.dtype(np.uint32),
+		gdal.GDT_Float32: np.dtype(np.float32),
+		gdal.GDT_Float64: np.dtype(np.float64)
+	}
+	
+	return mappings.get(dtype, np.dtype(float))
+
+
 # Public functions
 
 def openDataset(filename):
@@ -134,13 +151,19 @@ def datasetFromRaster(raster, forceGrayInterp = False, driver = 'MEM', filename=
 	
 	return dataset
 
-def createMergedDataset(filename, metadataDataset, rasterBands):
+def createMergedDataset(filename, metadataDataset, rasterBands, progressCallback=None):
 	"""
 	Creates a new dataset with all of the metadata from the specified input dataset,
 	and with each of the raster bands in the supplied list.
 	
 	List items can be either gdal.Band instances or 2D NumPy arrays. In the case of
 	NumPy arrays, a grayscale colour interpretation will be applied.
+	
+	A callback can be specified to be notified of progress. The callback will be called
+	before each block of each band is processed. The callback should have the following
+	signature:
+	
+	`callback(percent, currBand, totalBands, currBlock, totalBlocks, blocksize)`
 	"""
 	
 	# Determine resolution and datatype information from the first raster band
@@ -175,8 +198,17 @@ def createMergedDataset(filename, metadataDataset, rasterBands):
 	if metadataDataset != None and metadataDataset.GetGCPCount() > 0:
 		dataset.SetGCPs( metadataDataset.GetGCPs(), metadataDataset.GetGCPProjection() )
 	
+	# Determine the largest block size that can be used without running out of memory
+	blocksize = 65536
+	while True:
+		try:
+			testBlock = np.ones((blocksize, blocksize), dtype=_gdalTypeToNumpyType(dtype))
+			break
+		except MemoryError:
+			blocksize = blocksize // 2
+	
 	# Create the set of windows that will be used to copy raster data in blocks
-	windows = sw.generateForSize(width, height, sw.DimOrder.HeightWidthChannel, 2048, 0.0)
+	windows = sw.generateForSize(width, height, sw.DimOrder.HeightWidthChannel, blocksize, 0.0)
 	
 	# Copy each of the input raster bands
 	for index, inputBand in enumerate(rasterBands):
@@ -191,7 +223,14 @@ def createMergedDataset(filename, metadataDataset, rasterBands):
 			continue
 		
 		# Copy the band raster data in blocks
-		for window in windows:
+		for windowNum, window in enumerate(windows):
+			
+			# If a progress callback was supplied, call it before each block
+			if progressCallback is not None:
+				percent = ((index / len(rasterBands)) + ((windowNum / len(windows)) / len(rasterBands))) * 100.0
+				progressCallback(percent, index+1, len(rasterBands), windowNum+1, len(windows), blocksize)
+			
+			# Process the block
 			block = inputBand.ReadAsArray(xoff=window.x, yoff=window.y, win_xsize=window.w, win_ysize=window.h)
 			outputBand.WriteArray(block, xoff=window.x, yoff=window.y)
 		

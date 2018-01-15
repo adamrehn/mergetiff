@@ -1,6 +1,17 @@
 from __future__ import print_function
+import os, sys, time
 from .lib import *
-import os, sys
+
+def displayProgress(percent, currBand, totalBands, currBlock, totalBlocks, blocksize):
+	sys.stdout.write('{:.0f}% complete (Processing band {}/{}, block {}/{}, using blocksize {})\r'.format(
+		percent,
+		currBand,
+		totalBands,
+		currBlock,
+		totalBlocks,
+		blocksize
+	))
+	sys.stdout.flush()
 
 def main():
 	
@@ -19,8 +30,11 @@ def main():
 			bands.extend(getRasterBands(dataset, bandIndices))
 		
 		# Attempt to create the merged dataset
-		createMergedDataset(outputFile, datasets[0], bands)
-		print('Created merged dataset "' + outputFile + '".')
+		startTime = time.time()
+		createMergedDataset(outputFile, datasets[0], bands, displayProgress)
+		endTime = time.time()
+		print('100% complete (Processed all blocks of all bands)                               ')
+		print('Created merged dataset "{}" in {:.2f} seconds.'.format(outputFile, (endTime - startTime)))
 		
 	else:
 		print('Usage:')
