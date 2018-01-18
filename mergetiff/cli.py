@@ -2,15 +2,8 @@ from __future__ import print_function
 import os, sys, time
 from .lib import *
 
-def displayProgress(percent, currBand, totalBands, currBlock, totalBlocks, blocksize):
-	sys.stdout.write('{:.0f}% complete (Processing band {}/{}, block {}/{}, using blocksize {})\r'.format(
-		percent,
-		currBand,
-		totalBands,
-		currBlock,
-		totalBlocks,
-		blocksize
-	))
+def displayProgress(percent, currBand, totalBands):
+	print('{:.0f}% complete (Processing band {} of {})'.format(percent, currBand, totalBands))
 	sys.stdout.flush()
 
 def main():
@@ -33,7 +26,7 @@ def main():
 		startTime = time.time()
 		createMergedDataset(outputFile, datasets[0], bands, displayProgress)
 		endTime = time.time()
-		print('100% complete (Processed all blocks of all bands)                               ')
+		print('100% complete (Processed all bands)')
 		print('Created merged dataset "{}" in {:.2f} seconds.'.format(outputFile, (endTime - startTime)))
 		
 	else:

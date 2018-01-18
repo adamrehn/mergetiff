@@ -263,7 +263,7 @@ def createMergedDataset(filename, metadataDataset, rasterBands, progressCallback
 	before each block of each band is processed. The callback should have the following
 	signature:
 	
-	`callback(percent, currBand, totalBands, currBlock, totalBlocks, blocksize)`
+	`callback(percent, currBand, totalBands)`
 	"""
 	
 	# Determine resolution and datatype information from the first raster band
@@ -292,6 +292,10 @@ def createMergedDataset(filename, metadataDataset, rasterBands, progressCallback
 	
 	# Assign each of the input raster bands as the source for the corresponding virtual band
 	for index, inputBand in enumerate(rasterBands):
+		
+		# If a progress callback was supplied, call it at the start of each band
+		if progressCallback is not None:
+			progressCallback((index / len(rasterBands)) * 100.0, index+1, len(rasterBands))
 		
 		# Determine if the input band is a 2D NumPy array or a GDAL band, and wrap it accordingly
 		if not hasattr(inputBand, 'ReadAsArray'):
