@@ -156,6 +156,10 @@ def wrapRasterData(raster):
 	Wraps a NumPy array in a GDAL in-memory dataset. The memory is only wrapped, no copy is made.
 	"""
 	
+	# Verify that the NumPy's memory is contiguous
+	if raster.flags['C_CONTIGUOUS'] != True:
+		raise RuntimeError('NumPy array must be row-major and contiguous')
+	
 	# Retrieve the underlying pointer for the NumPy array
 	pointer, read_only_flag = raster.__array_interface__['data']
 	
