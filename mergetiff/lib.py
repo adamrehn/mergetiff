@@ -1,4 +1,3 @@
-import slidingwindow as sw
 from osgeo import gdal
 import numpy as np
 
@@ -41,7 +40,6 @@ def _numpyTypeToGdalType(dtype):
 	
 	return mappings.get(dtype, gdal.GDT_Unknown)
 
-
 def _gdalTypeToNumpyType(dtype):
 	"""
 	Returns the equivalent NumPy datatype for the specified GDAL datatype
@@ -71,8 +69,8 @@ def _memWrapFilename(raster):
 	pointer, read_only_flag = raster.__array_interface__['data']
 	
 	# Retrieve the image dimensions
-	cols  = raster.shape[0]
-	rows  = raster.shape[1]
+	rows  = raster.shape[0]
+	cols  = raster.shape[1]
 	bands = raster.shape[2] if len(raster.shape) > 2 else 1
 	
 	# Build the filename for the memory-wrap dataset
@@ -86,6 +84,70 @@ def _memWrapFilename(raster):
 		cols * bands * raster.dtype.itemsize,
 		raster.dtype.itemsize
 	)
+
+def _vrtWrapBand(vrtDataset, sourceBand):
+	"""
+	Wraps a GDAL raster band in a VRT band.
+	"""
+	
+	# Retrieve the width and height from the source band
+	width = sourceBand.XSize
+	height = sourceBand.YSize
+	
+	# Create the new VRT raster band
+	vrtDataset.AddBand(sourceBand.DataType)
+	vrtBand = vrtDataset.GetRasterBand(vrtDataset.RasterCount)
+	
+	# Build the XML for the data source
+	bandSource = '''<SimpleSource>
+		<SourceFilename relativeToVRT="1">{}</SourceFilename>
+		<SourceBand>{}</SourceBand>
+		<SrcRect xOff="{}" yOff="{}" xSize="{}" ySize="{}"/>
+		<DstRect xOff="{}" yOff="{}" xSize="{}" ySize="{}"/>
+	</SimpleSource>'''.format(
+		sourceBand.GetDataset().GetFileList()[0],
+		sourceBand.GetBand(),
+		0, 0, width, height,
+		0, 0, width, height
+	)
+	
+	# Add the data source to the VRT band
+	metadata = {}
+	metadata['source_0'] = bandSource
+	vrtBand.SetMetadata(metadata, 'vrt_sources')
+	return vrtBand
+
+def _vrtWrapArray(vrtDataset, raster):
+	"""
+	Wraps a 2D NumPy array in a VRT band.
+	"""
+	
+	# Retrieve the width and height from the NumPy array
+	width = raster.shape[1]
+	height = raster.shape[0]
+	
+	# Create the new VRT raster band
+	vrtDataset.AddBand(_numpyTypeToGdalType(raster.dtype))
+	vrtBand = vrtDataset.GetRasterBand(vrtDataset.RasterCount)
+	
+	# Build the XML for the data source
+	bandSource = '''<SimpleSource>
+		<SourceFilename>{}</SourceFilename>
+		<SourceBand>{}</SourceBand>
+		<SrcRect xOff="{}" yOff="{}" xSize="{}" ySize="{}"/>
+		<DstRect xOff="{}" yOff="{}" xSize="{}" ySize="{}"/>
+	</SimpleSource>'''.format(
+		_memWrapFilename(raster),
+		1,
+		0, 0, width, height,
+		0, 0, width, height
+	)
+	print(bandSource)
+	# Add the data source to the VRT band
+	metadata = {}
+	metadata['source_0'] = bandSource
+	vrtBand.SetMetadata(metadata, 'vrt_sources')
+	return vrtBand
 
 
 # Public functions
@@ -194,6 +256,9 @@ def createMergedDataset(filename, metadataDataset, rasterBands, progressCallback
 	List items can be either gdal.Band instances or 2D NumPy arrays. In the case of
 	NumPy arrays, a grayscale colour interpretation will be applied.
 	
+	Do NOT wrap NumPy arrays in GDAL datasets using wrapRasterData() and pass the bands
+	of these datasets to this function - instead pass the NumPy arrays directly.
+	
 	A callback can be specified to be notified of progress. The callback will be called
 	before each block of each band is processed. The callback should have the following
 	signature:
@@ -212,62 +277,29 @@ def createMergedDataset(filename, metadataDataset, rasterBands, progressCallback
 		height = rasterBands[0].shape[0]
 		dtype  = _numpyTypeToGdalType(rasterBands[0].dtype)
 	
-	# Create the output dataset
-	driver = gdal.GetDriverByName('GTiff')
-	dataset = driver.Create(
-		filename,
-		width,
-		height,
-		len(rasterBands),
-		dtype,
-		_geotiffOptions(dtype)
-	)
+	# Create a virtual dataset
+	virtualDataset = gdal.GetDriverByName('VRT').Create('', width, height, 0)
 	
 	# Copy the metadata from the input dataset
 	if metadataDataset != None:
-		dataset.SetGeoTransform( metadataDataset.GetGeoTransform() )
-		dataset.SetProjection( metadataDataset.GetProjection() )
-		dataset.SetMetadata( metadataDataset.GetMetadata() )
+		virtualDataset.SetGeoTransform( metadataDataset.GetGeoTransform() )
+		virtualDataset.SetProjection( metadataDataset.GetProjection() )
+		virtualDataset.SetMetadata( metadataDataset.GetMetadata() )
 	
 	# Copy the GCPs from the input dataset, if it has any
 	if metadataDataset != None and metadataDataset.GetGCPCount() > 0:
-		dataset.SetGCPs( metadataDataset.GetGCPs(), metadataDataset.GetGCPProjection() )
+		virtualDataset.SetGCPs( metadataDataset.GetGCPs(), metadataDataset.GetGCPProjection() )
 	
-	# Determine the largest block size that can be used without running out of memory
-	blocksize = 65536
-	while True:
-		try:
-			testBlock = np.ones((blocksize, blocksize), dtype=_gdalTypeToNumpyType(dtype))
-			break
-		except MemoryError:
-			blocksize = blocksize // 2
-	
-	# Create the set of windows that will be used to copy raster data in blocks
-	windows = sw.generateForSize(width, height, sw.DimOrder.HeightWidthChannel, blocksize, 0.0)
-	
-	# Copy each of the input raster bands
+	# Assign each of the input raster bands as the source for the corresponding virtual band
 	for index, inputBand in enumerate(rasterBands):
 		
-		# Retrieve the output band
-		outputBand = dataset.GetRasterBand(index+1)
-		
-		# If the input band is a 2D NumPy array, copy the raster data and interpret it as grayscale
+		# Determine if the input band is a 2D NumPy array or a GDAL band, and wrap it accordingly
 		if not hasattr(inputBand, 'ReadAsArray'):
-			outputBand.WriteArray(inputBand)
+			outputBand = _vrtWrapArray(virtualDataset, inputBand)
 			outputBand.SetColorInterpretation(gdal.GCI_GrayIndex)
 			continue
-		
-		# Copy the band raster data in blocks
-		for windowNum, window in enumerate(windows):
-			
-			# If a progress callback was supplied, call it before each block
-			if progressCallback is not None:
-				percent = ((index / len(rasterBands)) + ((windowNum / len(windows)) / len(rasterBands))) * 100.0
-				progressCallback(percent, index+1, len(rasterBands), windowNum+1, len(windows), blocksize)
-			
-			# Process the block
-			block = inputBand.ReadAsArray(xoff=window.x, yoff=window.y, win_xsize=window.w, win_ysize=window.h)
-			outputBand.WriteArray(block, xoff=window.x, yoff=window.y)
+		else:
+			outputBand = _vrtWrapBand(virtualDataset, inputBand)
 		
 		# Copy the "no data" sentinel value, if any
 		if inputBand.GetNoDataValue() != None:
@@ -276,6 +308,15 @@ def createMergedDataset(filename, metadataDataset, rasterBands, progressCallback
 		# Copy the colour interpretation value, if any
 		if inputBand.GetColorInterpretation() != None:
 			outputBand.SetColorInterpretation( inputBand.GetColorInterpretation() )
+	
+	# Attempt to create the output dataset as a copy of the virtual dataset
+	driver = gdal.GetDriverByName('GTiff')
+	dataset = driver.CreateCopy(
+		filename,
+		virtualDataset,
+		0,
+		_geotiffOptions(dtype)
+	)
 	
 	return dataset
 
