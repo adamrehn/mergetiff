@@ -3,10 +3,6 @@ from osgeo import gdal
 import os, sys, time
 from .lib import *
 
-def displayProgress(percent, currBand, totalBands):
-	print('{:.0f}% complete (Processing band {} of {})'.format(percent, currBand, totalBands))
-	sys.stdout.flush()
-
 def main():
 	
 	# Enable GDAL exception handling
@@ -29,9 +25,8 @@ def main():
 		
 		# Attempt to create the merged dataset
 		startTime = time.time()
-		createMergedDataset(outputFile, datasets[0], bands, displayProgress)
+		createMergedDataset(outputFile, datasets[0], bands, gdal.TermProgress)
 		endTime = time.time()
-		print('100% complete (Processed all bands)')
 		print('Created merged dataset "{}" in {:.2f} seconds.'.format(outputFile, (endTime - startTime)))
 		
 	else:

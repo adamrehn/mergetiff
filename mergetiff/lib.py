@@ -259,11 +259,13 @@ def createMergedDataset(filename, metadataDataset, rasterBands, progressCallback
 	Do NOT wrap NumPy arrays in GDAL datasets using wrapRasterData() and pass the bands
 	of these datasets to this function - instead pass the NumPy arrays directly.
 	
-	A callback can be specified to be notified of progress. The callback will be called
-	before each block of each band is processed. The callback should have the following
-	signature:
+	A callback can be specified to be notified of progress. The callback should adhere to
+	the standard GDALProgressFunc signature:
 	
-	`callback(percent, currBand, totalBands)`
+	`callback(dfComplete, message, arg)`
+	
+	The callback should return 1 if processing should continue, or 0 to cancel processing.
+	(See <https://github.com/OSGeo/gdal/blob/trunk/gdal/doc/api.dox> for details.)
 	"""
 	
 	# Determine resolution and datatype information from the first raster band
@@ -293,10 +295,6 @@ def createMergedDataset(filename, metadataDataset, rasterBands, progressCallback
 	# Assign each of the input raster bands as the source for the corresponding virtual band
 	for index, inputBand in enumerate(rasterBands):
 		
-		# If a progress callback was supplied, call it at the start of each band
-		if progressCallback is not None:
-			progressCallback((index / len(rasterBands)) * 100.0, index+1, len(rasterBands))
-		
 		# Determine if the input band is a 2D NumPy array or a GDAL band, and wrap it accordingly
 		if not hasattr(inputBand, 'ReadAsArray'):
 			outputBand = _vrtWrapArray(virtualDataset, inputBand)
@@ -319,7 +317,8 @@ def createMergedDataset(filename, metadataDataset, rasterBands, progressCallback
 		filename,
 		virtualDataset,
 		0,
-		_geotiffOptions(dtype)
+		_geotiffOptions(dtype),
+		progressCallback
 	)
 	
 	return dataset
