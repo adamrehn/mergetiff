@@ -151,6 +151,34 @@ def datasetFromRaster(raster, forceGrayInterp = False, driver = 'MEM', filename=
 	
 	return dataset
 
+def wrapRasterData(raster):
+	"""
+	Wraps a NumPy array in a GDAL in-memory dataset. The memory is only wrapped, no copy is made.
+	"""
+	
+	# Retrieve the underlying pointer for the NumPy array
+	pointer, read_only_flag = raster.__array_interface__['data']
+	
+	# Retrieve the image dimensions
+	cols  = raster.shape[0]
+	rows  = raster.shape[1]
+	bands = raster.shape[2] if len(raster.shape) > 2 else 1
+	
+	# Build the filename for the memory-wrap dataset
+	filename = 'MEM:::DATAPOINTER={},PIXELS={},LINES={},BANDS={},DATATYPE={},PIXELOFFSET={},LINEOFFSET={},BANDOFFSET={}'.format(
+		hex(pointer),
+		cols,
+		rows,
+		bands,
+		gdal.GetDataTypeName(_numpyTypeToGdalType(raster.dtype)),
+		bands * raster.dtype.itemsize,
+		cols * bands * raster.dtype.itemsize,
+		raster.dtype.itemsize
+	)
+	
+	# Attempt to create the memory-wrap dataset
+	return gdal.Open(filename, gdal.GA_ReadOnly)
+
 def createMergedDataset(filename, metadataDataset, rasterBands, progressCallback=None):
 	"""
 	Creates a new dataset with all of the metadata from the specified input dataset,
