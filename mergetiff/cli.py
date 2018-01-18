@@ -1,4 +1,5 @@
 from __future__ import print_function
+from osgeo import gdal
 import os, sys, time
 from .lib import *
 
@@ -7,6 +8,10 @@ def displayProgress(percent, currBand, totalBands):
 	sys.stdout.flush()
 
 def main():
+	
+	# Enable GDAL exception handling
+	gdal.UseExceptions()
+	gdal.PushErrorHandler('CPLQuietErrorHandler')
 	
 	# Check that the required command-line arguments have been supplied
 	if len(sys.argv) > 3 and len(sys.argv) % 2 == 0:
