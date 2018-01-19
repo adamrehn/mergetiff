@@ -21,7 +21,8 @@ setup(
 	zip_safe=True,
 	install_requires = [
 		'GDAL>=2',
-		'numpy'
+		'numpy',
+		'psutil'
 	],
 	entry_points = {
 		'console_scripts': ['mergetiff=mergetiff.cli:main']

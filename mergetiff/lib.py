@@ -1,5 +1,6 @@
 from osgeo import gdal
 import numpy as np
+import psutil
 
 # Private functions
 
@@ -339,20 +340,26 @@ class RasterReader(object):
 		self._dataset = openDataset(filename)
 		
 		# Retrieve the image dimensions
-		self._width  = self._dataset.GetRasterBand(1).XSize
-		self._height = self._dataset.GetRasterBand(1).YSize
+		self._width    = self._dataset.RasterXSize
+		self._height   = self._dataset.RasterYSize
+		self._channels = self._dataset.RasterCount
 		
 		# Create our `shape` attribute
-		channels = self._dataset.RasterCount
-		if channels > 1:
-			self.shape = (self._height, self._width, channels)
+		if self._channels > 1:
+			self.shape = (self._height, self._width, self._channels)
 		else:
 			self.shape = (self._height, self._width)
 		
-		# Attempt to read the raster data into memory
-		try:
+		# Determine the number of bytes required to store the raster data
+		dtype = self._dataset.GetRasterBand(1).DataType
+		requiredBytes = self._width * self._height * self._channels * gdal.GetDataTypeSize(dtype)
+		
+		# Determine if there is sufficient available memory to store the raster data
+		vmem = psutil.virtual_memory()
+		safetyBuffer = 100*1024*1024
+		if (vmem.available - safetyBuffer) > requiredBytes:
 			self._raster = rasterFromDataset(self._dataset)
-		except MemoryError:
+		else:
 			self._raster = None
 	
 	
