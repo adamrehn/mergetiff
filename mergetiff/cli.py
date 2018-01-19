@@ -25,7 +25,7 @@ def main():
 		
 		# Attempt to create the merged dataset
 		startTime = time.time()
-		createMergedDataset(outputFile, datasets[0], bands, gdal.TermProgress)
+		createMergedDataset(outputFile, datasets[0], bands, gdal.TermProgress_nocb)
 		endTime = time.time()
 		print('Created merged dataset "{}" in {:.2f} seconds.'.format(outputFile, (endTime - startTime)))
 		

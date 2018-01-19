@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
 	name='mergetiff',
-	version='0.0.16',
+	version='0.0.17',
 	description='Library and command-line tool to merge GeoTiff files using GDAL',
 	classifiers=[
 		'License :: OSI Approved :: MIT License',
