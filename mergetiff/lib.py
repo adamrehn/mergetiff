@@ -142,7 +142,7 @@ def _vrtWrapArray(vrtDataset, raster):
 		0, 0, width, height,
 		0, 0, width, height
 	)
-	print(bandSource)
+	
 	# Add the data source to the VRT band
 	metadata = {}
 	metadata['source_0'] = bandSource
